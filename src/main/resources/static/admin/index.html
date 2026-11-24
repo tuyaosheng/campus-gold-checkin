@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>点亮金牌管理后台</title>
+    <link rel="stylesheet" href="/admin/styles.css">
+</head>
+<body>
+<div class="admin-shell">
+    <aside class="sidebar">
+        <div class="brand">
+            <h1>点亮金牌</h1>
+            <p>用于管理全校或本班的每日打卡数据、战力榜和报表导出。</p>
+        </div>
+        <div class="nav-list">
+            <button class="nav-link active" data-section="overview">系统总览</button>
+            <button class="nav-link" data-section="leaderboard">战力榜</button>
+            <button class="nav-link" data-section="export">报表导出</button>
+            <button class="nav-link" data-section="correction">数据修正</button>
+            <button class="nav-link" data-section="password">密码安全</button>
+            <button class="nav-link admin-only" data-section="accounts">账号管理</button>
+            <button class="nav-link admin-only" data-section="student-order">序号绑定</button>
+            <button class="nav-link admin-only" data-section="roster">花名册上传</button>
+            <button class="nav-link admin-only" data-section="semester">开学日期与调试</button>
+            <button class="nav-link admin-only" data-section="quotes">每日金句</button>
+            <button class="nav-link admin-only" data-section="rank">段位规则</button>
+            <button class="nav-link admin-only" data-section="links">班级链接</button>
+        </div>
+        <div class="sidebar-footer">
+            打卡时间窗固定为 06:00-07:10 和 21:30-21:50。<br>
+            管理员可管理系统；行政可查全校；级长可查本年级；班主任仅查本班。
+        </div>
+    </aside>
+    <main class="main-panel">
+        <div class="top-panel">
+            <div>
+                <h1 class="heading">管理后台</h1>
+                <div class="heading-sub" id="headingSub">正在加载当前账号信息...</div>
+            </div>
+            <div class="user-panel">
+                <div>当前用户：<strong id="currentUser">--</strong></div>
+                <div>角色：<span id="currentRole" class="badge">--</span></div>
+                <div class="muted" style="margin-top: 10px;">使用统一后台管理花名册、榜单与导出。</div>
+                <button id="logoutBtn" class="ghost-button" style="margin-top: 14px; width: 100%;">退出登录</button>
+            </div>
+        </div>
+
+        <section id="section-overview" class="sections">
+            <div class="card-grid">
+                <div class="metric-card">
+                    <div class="metric-label">当前周次</div>
+                    <div class="metric-value" id="metricWeek">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">开学日期</div>
+                    <div class="metric-value" id="metricSemesterDate" style="font-size: 22px;">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">班级数量</div>
+                    <div class="metric-value" id="metricClassCount">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">学生总数</div>
+                    <div class="metric-value" id="metricStudentCount">--</div>
+                </div>
+            </div>
+            <div class="content-card hidden" id="overviewScopeCard">
+                <h2>当前账号数据范围</h2>
+                <div class="muted" id="overviewScopeText">正在加载可查看范围...</div>
+            </div>
+            <div class="content-card">
+                <h2>使用说明</h2>
+                <div class="muted" style="line-height: 1.8;">
+                    1. 管理员先上传 Excel 花名册，系统会自动建立班级、学生和班主任账号。<br>
+                    2. 班级打卡链接格式为 `/checkin.html?code=班级特征码`。<br>
+                    3. 导出支持按日、周、月生成 Excel，班主任账号会自动限制为本班数据。<br>
+                    4. 战力榜可按日期和时段查询，默认查询当天早上时段。
+                </div>
+            </div>
+        </section>
+
+        <section id="section-leaderboard" class="sections hidden">
+            <div class="content-card">
+                <h2>战力榜查询</h2>
+                <div class="toolbar">
+                    <div class="date-field">
+                        <input id="leaderboardDate" class="input" type="date">
+                        <button class="date-button" data-picker-target="leaderboardDate" type="button">📅</button>
+                    </div>
+                    <select id="leaderboardSlot" class="select">
+                        <option value="MORNING">早上</option>
+                        <option value="EVENING">晚上</option>
+                    </select>
+                    <button id="refreshLeaderboardBtn" class="button" type="button">刷新榜单</button>
+                </div>
+                <div class="toolbar admin-only">
+                    <select id="leaderboardGradeFilter" class="select">
+                        <option value="">全部年级</option>
+                    </select>
+                    <select id="leaderboardClassFilter" class="select">
+                        <option value="">全部班级</option>
+                    </select>
+                    <button id="openLeaderboardClassBtn" class="ghost-button" type="button">查看班级学生榜</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>排名</th>
+                            <th>班级</th>
+                            <th>应到人数</th>
+                            <th>已打卡</th>
+                            <th>出勤率</th>
+                        </tr>
+                        </thead>
+                        <tbody id="leaderboardTableBody">
+                        <tr><td colspan="5" class="muted">正在加载...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="muted admin-only" style="margin: 18px 0 10px; line-height: 1.8;">
+                    下表仅后台可见，用于核对“次数 + 质量分”排序。质量分规则：早上越早越高，返校日额外晚上越早越高，平时晚上越晚越高。
+                </div>
+                <div class="toolbar admin-only" style="justify-content: space-between; align-items: center; margin-top: 12px; margin-bottom: 10px;">
+                    <div id="studentQualitySummary" class="muted">正在加载质量分总榜...</div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button id="studentQualityPrevBtn" class="ghost-button" type="button">上一页</button>
+                        <span id="studentQualityPageInfo" class="muted">第 1 / 1 页</span>
+                        <button id="studentQualityNextBtn" class="ghost-button" type="button">下一页</button>
+                    </div>
+                </div>
+                <div class="table-wrap admin-only">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>排名</th>
+                            <th>班级</th>
+                            <th>学号</th>
+                            <th>姓名</th>
+                            <th>累计次数</th>
+                            <th>质量分</th>
+                            <th>段位</th>
+                        </tr>
+                        </thead>
+                        <tbody id="studentQualityTableBody">
+                        <tr><td colspan="7" class="muted">正在加载...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="classLeaderboardDetailCard" class="content-card admin-only hidden" style="margin-top: 18px;">
+                    <div class="toolbar" style="justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div>
+                            <h2 id="classLeaderboardDetailTitle" style="margin-bottom: 6px;">班级学生榜</h2>
+                            <div id="classLeaderboardDetailDesc" class="muted">点击上方班级后查看该班学生详细榜单。</div>
+                        </div>
+                        <button id="closeClassLeaderboardDetailBtn" class="ghost-button" type="button">返回班级榜</button>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>学号</th>
+                                <th>姓名</th>
+                                <th>累计次数</th>
+                                <th>质量分</th>
+                                <th>段位</th>
+                            </tr>
+                            </thead>
+                            <tbody id="classLeaderboardDetailBody">
+                            <tr><td colspan="6" class="muted">点击上方班级后查看该班学生详细榜单。</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-export" class="sections hidden">
+            <div class="content-card">
+                <h2>报表导出</h2>
+                <div class="toolbar">
+                    <select id="exportScope" class="select">
+                        <option value="daily">按日导出</option>
+                        <option value="weekly">按周导出</option>
+                        <option value="monthly">按月导出</option>
+                        <option value="semester">按学期导出</option>
+                    </select>
+                    <div id="exportDateField" class="date-field">
+                        <input id="exportDate" class="input" type="date">
+                        <button class="date-button" data-picker-target="exportDate" type="button">📅</button>
+                    </div>
+                    <div id="exportWeekField" class="date-field hidden">
+                        <select id="exportWeekIndex" class="select">
+                            <option value="">请选择周次</option>
+                        </select>
+                    </div>
+                    <div id="exportMonthField" class="date-field hidden">
+                        <select id="exportMonth" class="select">
+                            <option value="">请选择月份</option>
+                        </select>
+                    </div>
+                    <button id="exportBtn" class="button" type="button">导出 Excel</button>
+                </div>
+                <div id="exportStatus" class="status-bar">
+                    导出范围会根据当前账号角色自动隔离：管理员导出全校，班主任仅导出本班。
+                </div>
+            </div>
+        </section>
+
+        <section id="section-correction" class="sections hidden">
+            <div class="content-card">
+                <h2>打卡数据修正</h2>
+                <div class="muted" style="margin-bottom: 14px; line-height: 1.8;">
+                    用于补录遗漏打卡或撤销错误打卡。当前账号仅能修改自己权限范围内的数据。
+                </div>
+                <div class="toolbar">
+                    <div class="date-field">
+                        <input id="correctionDate" class="input" type="date">
+                        <button class="date-button" data-picker-target="correctionDate" type="button">📅</button>
+                    </div>
+                    <select id="correctionSlot" class="select">
+                        <option value="MORNING">早上</option>
+                        <option value="EVENING">晚上</option>
+                    </select>
+                    <select id="correctionClassId" class="select">
+                        <option value="">请选择班级</option>
+                    </select>
+                    <input id="correctionTime" class="input" type="time" value="06:00">
+                    <button id="loadCorrectionBtn" class="button" type="button">查询数据</button>
+                </div>
+                <div id="correctionStatus" class="status-bar">请选择日期、时段和班级后查询；补录时可指定实际打卡时间。</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>班级</th>
+                            <th>学号</th>
+                            <th>姓名</th>
+                            <th>状态</th>
+                            <th>打卡时间</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="correctionTableBody">
+                        <tr><td colspan="6" class="muted">正在等待查询。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-password" class="sections hidden">
+            <div class="content-card">
+                <h2>修改我的密码</h2>
+                <div class="muted" style="margin-bottom: 14px; line-height: 1.8;">
+                    默认密码统一为 `dlzx`。首次登录后必须先修改密码，修改成功后系统会自动刷新登录状态。
+                </div>
+                <div class="toolbar">
+                    <input id="oldPassword" class="input" type="password" placeholder="请输入原密码">
+                    <input id="newPassword" class="input" type="password" placeholder="请输入新密码">
+                    <button id="changePasswordBtn" class="button" type="button">修改密码</button>
+                </div>
+                <div id="passwordStatus" class="status-bar">建议使用不低于 4 位的新密码。</div>
+            </div>
+        </section>
+
+        <section id="section-roster" class="sections hidden">
+            <div class="content-card">
+                <h2>学生花名册上传</h2>
+                <div class="muted" style="margin-bottom: 14px; line-height: 1.8;">
+                    学生模板仅包含：年级、班号、学号、学生姓名。班号只填数字，例如 `1` 会自动识别为 `1班`。
+                </div>
+                <div class="toolbar">
+                    <input id="studentRosterFile" class="file-input" type="file" accept=".xls,.xlsx">
+                    <button id="downloadStudentTemplateBtn" class="ghost-button" type="button">下载学生模板</button>
+                    <button id="previewStudentRosterBtn" class="ghost-button" type="button">预校验</button>
+                    <button id="uploadStudentRosterBtn" class="button" type="button">导入学生数据</button>
+                    <button id="exportStudentErrorsBtn" class="ghost-button hidden" type="button">导出错误清单</button>
+                </div>
+                <div class="progress-wrap"><div id="studentProgressBar" class="progress-bar"></div></div>
+                <div id="studentRosterStatus" class="status-bar">等待上传学生花名册。</div>
+            </div>
+            <div class="content-card">
+                <h2>教职工账号上传</h2>
+                <div class="muted" style="margin-bottom: 14px; line-height: 1.8;">
+                    角色支持中文或英文：`班主任 / 级长 / 行政`，或 `TEACHER / GRADE_LEADER / STAFF`。班号只填数字即可。
+                </div>
+                <div class="toolbar">
+                    <input id="userRosterFile" class="file-input" type="file" accept=".xls,.xlsx">
+                    <button id="downloadUserTemplateBtn" class="ghost-button" type="button">下载教职工模板</button>
+                    <button id="previewUserRosterBtn" class="ghost-button" type="button">预校验</button>
+                    <button id="uploadUserRosterBtn" class="button" type="button">导入教职工账号</button>
+                    <button id="exportUserErrorsBtn" class="ghost-button hidden" type="button">导出错误清单</button>
+                </div>
+                <div class="progress-wrap"><div id="userProgressBar" class="progress-bar"></div></div>
+                <div id="userRosterStatus" class="status-bar">等待上传教职工账号表。</div>
+            </div>
+        </section>
+
+        <section id="section-accounts" class="sections hidden">
+            <div class="content-card">
+                <h2>账号管理</h2>
+                <div class="muted" style="margin-bottom: 14px; line-height: 1.8;">
+                    这里展示所有可管理账号，不含系统管理员。角色包括班主任、级长、行政。
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>姓名</th>
+                            <th>账号</th>
+                            <th>角色</th>
+                            <th>年级</th>
+                            <th>班级</th>
+                            <th>状态</th>
+                            <th>首次改密</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="accountsTableBody">
+                        <tr><td colspan="8" class="muted">正在加载...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-student-order" class="sections hidden">
+            <div class="content-card">
+                <h2>学生打卡序号绑定</h2>
+                <div class="muted" style="margin-bottom: 14px; line-height: 1.8;">
+                    打卡页默认按学号后两位显示序号；如遇转学、空号或特殊排位，可在这里手工绑定。清空后会恢复为按学号后两位自动取号。
+                </div>
+                <div class="toolbar">
+                    <select id="studentOrderClassId" class="select">
+                        <option value="">请选择班级</option>
+                    </select>
+                    <button id="loadStudentOrderBtn" class="button" type="button">加载学生</button>
+                </div>
+                <div id="studentOrderStatus" class="status-bar">请选择班级后加载学生序号。</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>学号</th>
+                            <th>姓名</th>
+                            <th>默认序号</th>
+                            <th>当前生效序号</th>
+                            <th>手工绑定序号</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="studentOrderTableBody">
+                        <tr><td colspan="6" class="muted">请选择班级后加载。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-semester" class="sections hidden">
+            <div class="content-card">
+                <h2>开学日期设置</h2>
+                <div class="toolbar">
+                    <div class="date-field">
+                        <input id="semesterDate" class="input" type="date">
+                        <button class="date-button" data-picker-target="semesterDate" type="button">📅</button>
+                    </div>
+                    <button id="saveSemesterBtn" class="button" type="button">保存日期</button>
+                </div>
+                <div id="semesterStatus" class="status-bar">该日期用于计算当前第几周，并为周报导出提供参照。</div>
+            </div>
+            <div class="content-card">
+                <h2>打卡调试开关</h2>
+                <div class="muted" style="margin-bottom: 14px; line-height: 1.8;">
+                    开启后，服务器将放开打卡时间限制，任意时间都可打卡；关闭后，仍严格按 06:00-07:10 与 21:30-21:50 校验。
+                </div>
+                <div class="toolbar">
+                    <select id="checkinDebugEnabled" class="select">
+                        <option value="0">关闭</option>
+                        <option value="1">开启</option>
+                    </select>
+                    <button id="saveCheckinDebugBtn" class="button" type="button">保存开关</button>
+                </div>
+                <div id="checkinDebugStatus" class="status-bar">正在加载调试开关状态。</div>
+            </div>
+            <div class="content-card">
+                <h2>晚间打卡与返校日规则</h2>
+                <div class="muted" style="margin-bottom: 14px; line-height: 1.8;">
+早上、平时晚上、返校日晚上都支持按年级分别设置。返校日默认按本周周日推算，也可按调休情况手动修改为具体日期。
+                </div>
+                <div class="toolbar">
+                    <div class="date-field">
+                        <input id="returnDate" class="input" type="date">
+                        <button class="date-button" data-picker-target="returnDate" type="button">📅</button>
+                    </div>
+                    <button id="saveEveningCheckinBtn" class="button" type="button">保存打卡规则</button>
+                </div>
+                <div class="muted" id="returnDateHint" style="margin-top: 10px;">本周默认返校日：--；当前生效返校日：--</div>
+                <div class="table-wrap" style="margin-top: 14px;">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>年级</th>
+                            <th>早上开始</th>
+                            <th>早上结束</th>
+                            <th>平时晚上开始</th>
+                            <th>平时晚上结束</th>
+                            <th>返校日晚上开始</th>
+                            <th>返校日晚上结束</th>
+                        </tr>
+                        </thead>
+                        <tbody id="eveningCheckinRuleBody">
+                        <tr><td colspan="7" class="muted">正在加载打卡规则...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="eveningCheckinStatus" class="status-bar">正在加载打卡规则。</div>
+            </div>
+        </section>
+
+        <section id="section-quotes" class="sections hidden">
+            <div class="content-card">
+                <h2>早上金句管理</h2>
+                <div class="muted" style="margin-bottom: 14px; line-height: 1.8;">
+                    每行填写 1 条早上金句。系统会按顺序每天轮换 1 句；保存时可指定今天从第几句开始显示。
+                </div>
+                <textarea id="morningQuotesText" class="input" style="min-height: 220px; width: 100%; resize: vertical;" placeholder="每行输入一条早上金句"></textarea>
+                <div class="toolbar" style="margin-top: 14px;">
+                    <select id="morningQuoteStartIndex" class="select" style="min-width: 300px;">
+                        <option value="1">今日从第 1 句开始显示</option>
+                    </select>
+                </div>
+                <div id="morningQuotePreview" class="muted" style="margin-top: 10px;">今日早上显示预览：--</div>
+            </div>
+            <div class="content-card">
+                <h2>晚上金句管理</h2>
+                <div class="muted" style="margin-bottom: 14px; line-height: 1.8;">
+                    每行填写 1 条晚上金句。系统会按顺序每天轮换 1 句；保存时可指定今天从第几句开始显示。
+                </div>
+                <textarea id="eveningQuotesText" class="input" style="min-height: 220px; width: 100%; resize: vertical;" placeholder="每行输入一条晚上金句"></textarea>
+                <div class="toolbar" style="margin-top: 14px;">
+                    <select id="eveningQuoteStartIndex" class="select" style="min-width: 300px;">
+                        <option value="1">今日从第 1 句开始显示</option>
+                    </select>
+                    <button id="saveDailyQuotesBtn" class="button" type="button">保存早上/晚上金句</button>
+                </div>
+                <div id="eveningQuotePreview" class="muted" style="margin-top: 10px;">今日晚上显示预览：--</div>
+                <div id="dailyQuotesStatus" class="status-bar">正在加载每日金句配置。</div>
+            </div>
+        </section>
+
+        <section id="section-rank" class="sections hidden">
+            <div class="content-card">
+                <h2>段位规则</h2>
+                <div class="muted" style="margin-bottom: 14px; line-height: 1.8;">
+                    可选择按累计打卡次数划分段位，或按榜单人数百分比分配段位。保存后会同步应用到打卡页班内战力榜和报表累计统计。
+                </div>
+                <div class="toolbar">
+                    <select id="rankMode" class="select">
+                        <option value="COUNT">按累计次数</option>
+                        <option value="PERCENT">按人数百分比</option>
+                    </select>
+                    <button id="saveRankSettingBtn" class="button" type="button">保存段位规则</button>
+                </div>
+                <div class="table-wrap" style="margin-top: 14px;">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>段位</th>
+                            <th>累计次数阈值</th>
+                            <th>百分比分配</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td>荣耀王者起点</td><td><input id="gloryCount" class="input" type="number" min="0"></td><td><input id="gloryPercent" class="input" type="number" min="0" max="100"></td></tr>
+                        <tr><td>无双王者起点</td><td><input id="legendCount" class="input" type="number" min="0"></td><td><input id="legendPercent" class="input" type="number" min="0" max="100"></td></tr>
+                        <tr><td>最强王者起点</td><td><input id="kingCount" class="input" type="number" min="0"></td><td><input id="kingPercent" class="input" type="number" min="0" max="100"></td></tr>
+                        <tr><td>至尊星耀Ⅰ</td><td><input id="starry1Count" class="input" type="number" min="0"></td><td rowspan="5" style="vertical-align: middle;">星耀百分比<input id="starryPercent" class="input" type="number" min="0" max="100" style="margin-top:8px;"></td></tr>
+                        <tr><td>至尊星耀Ⅱ</td><td><input id="starry2Count" class="input" type="number" min="0"></td></tr>
+                        <tr><td>至尊星耀Ⅲ</td><td><input id="starry3Count" class="input" type="number" min="0"></td></tr>
+                        <tr><td>至尊星耀Ⅳ</td><td><input id="starry4Count" class="input" type="number" min="0"></td></tr>
+                        <tr><td>至尊星耀Ⅴ</td><td><input id="starryCount" class="input" type="number" min="0"></td></tr>
+                        <tr><td>永恒钻石Ⅰ</td><td><input id="diamond1Count" class="input" type="number" min="0"></td><td rowspan="5" style="vertical-align: middle;">钻石百分比<input id="diamondPercent" class="input" type="number" min="0" max="100" style="margin-top:8px;"></td></tr>
+                        <tr><td>永恒钻石Ⅱ</td><td><input id="diamond2Count" class="input" type="number" min="0"></td></tr>
+                        <tr><td>永恒钻石Ⅲ</td><td><input id="diamond3Count" class="input" type="number" min="0"></td></tr>
+                        <tr><td>永恒钻石Ⅳ</td><td><input id="diamond4Count" class="input" type="number" min="0"></td></tr>
+                        <tr><td>永恒钻石Ⅴ</td><td><input id="diamondCount" class="input" type="number" min="0"></td></tr>
+                        <tr><td>尊贵铂金Ⅰ</td><td><input id="platinum1Count" class="input" type="number" min="0"></td><td rowspan="4" style="vertical-align: middle;">铂金百分比<input id="platinumPercent" class="input" type="number" min="0" max="100" style="margin-top:8px;"></td></tr>
+                        <tr><td>尊贵铂金Ⅱ</td><td><input id="platinum2Count" class="input" type="number" min="0"></td></tr>
+                        <tr><td>尊贵铂金Ⅲ</td><td><input id="platinum3Count" class="input" type="number" min="0"></td></tr>
+                        <tr><td>尊贵铂金Ⅳ</td><td><input id="platinumCount" class="input" type="number" min="0"></td></tr>
+                        <tr><td>荣耀黄金Ⅰ</td><td><input id="gold1Count" class="input" type="number" min="0"></td><td rowspan="4" style="vertical-align: middle;">黄金百分比<input id="goldPercent" class="input" type="number" min="0" max="100" style="margin-top:8px;"></td></tr>
+                        <tr><td>荣耀黄金Ⅱ</td><td><input id="gold2Count" class="input" type="number" min="0"></td></tr>
+                        <tr><td>荣耀黄金Ⅲ</td><td><input id="gold3Count" class="input" type="number" min="0"></td></tr>
+                        <tr><td>荣耀黄金Ⅳ</td><td><input id="goldCount" class="input" type="number" min="0"></td></tr>
+                        <tr><td>秩序白银Ⅰ</td><td><input id="silver1Count" class="input" type="number" min="0"></td><td rowspan="3" style="vertical-align: middle;">白银百分比<input id="silverPercent" class="input" type="number" min="0" max="100" style="margin-top:8px;"></td></tr>
+                        <tr><td>秩序白银Ⅱ</td><td><input id="silver2Count" class="input" type="number" min="0"></td></tr>
+                        <tr><td>秩序白银Ⅲ</td><td><input id="silverCount" class="input" type="number" min="0"></td></tr>
+                        <tr><td>倔强青铜Ⅰ</td><td><input id="bronze1Count" class="input" type="number" min="0"></td><td rowspan="3" style="vertical-align: middle;">青铜百分比<input id="bronzePercent" class="input" type="number" min="0" max="100" style="margin-top:8px;"></td></tr>
+                        <tr><td>倔强青铜Ⅱ</td><td><input id="bronze2Count" class="input" type="number" min="0"></td></tr>
+                        <tr><td>倔强青铜Ⅲ</td><td><input id="bronzeCount" class="input" type="number" min="0"></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="rankSettingStatus" class="status-bar">正在加载段位规则。</div>
+            </div>
+        </section>
+
+        <section id="section-links" class="sections hidden">
+            <div class="content-card">
+                <h2>班级免登录打卡链接</h2>
+                <div class="toolbar">
+                    <button id="exportClassLinksBtn" class="button" type="button">导出链接表 Excel</button>
+                    <button id="downloadClassLinkZipBtn" class="ghost-button" type="button">下载快捷方式压缩包</button>
+                </div>
+                <div id="linksStatus" class="status-bar">可导出包含班级、班主任、特征码和完整打卡地址的链接表。</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>班级</th>
+                            <th>班主任</th>
+                            <th>教师账号</th>
+                            <th>学生数</th>
+                            <th>特征码</th>
+                            <th>打卡地址</th>
+                        </tr>
+                        </thead>
+                        <tbody id="classLinksBody">
+                        <tr><td colspan="6" class="muted">正在加载...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+<div id="userEditModal" class="modal hidden">
+    <div class="modal-backdrop" data-close-modal="userEditModal"></div>
+    <div class="modal-card">
+        <div class="modal-head">
+            <h2>编辑账号</h2>
+            <button id="closeUserEditModalBtn" class="ghost-button modal-close" type="button">关闭</button>
+        </div>
+        <div class="muted" style="margin-bottom: 14px; line-height: 1.8;">
+            班主任需绑定班级，级长需绑定年级，行政无需绑定。
+        </div>
+        <input id="editUserId" class="input hidden" type="hidden">
+        <div class="toolbar">
+            <input id="editRealName" class="input" type="text" placeholder="姓名">
+            <select id="editRoleCode" class="select">
+                <option value="TEACHER">班主任</option>
+                <option value="GRADE_LEADER">级长</option>
+                <option value="STAFF">行政</option>
+            </select>
+            <select id="editEnabled" class="select">
+                <option value="1">启用</option>
+                <option value="0">停用</option>
+            </select>
+        </div>
+        <div class="toolbar">
+            <select id="editGradeName" class="select">
+                <option value="">请选择年级</option>
+            </select>
+            <select id="editClassId" class="select">
+                <option value="">请选择班级</option>
+            </select>
+            <button id="saveUserEditBtn" class="button" type="button">保存账号信息</button>
+        </div>
+        <div id="userEditStatus" class="status-bar">请先在账号列表点击“编辑”。</div>
+    </div>
+</div>
+<div id="correctionCheckinModal" class="modal hidden">
+    <div class="modal-backdrop" data-close-modal="correctionCheckinModal"></div>
+    <div class="modal-card" style="width: min(560px, 100%);">
+        <div class="modal-head">
+            <h2 id="correctionModalTitle">补录打卡</h2>
+            <button id="closeCorrectionCheckinModalBtn" class="ghost-button modal-close" type="button">关闭</button>
+        </div>
+        <div class="muted" id="correctionModalStudentText" style="margin-bottom: 14px; line-height: 1.8;">
+            请选择补录时间后确认。
+        </div>
+        <input id="correctionModalStudentId" class="hidden" type="hidden">
+        <input id="correctionModalAction" class="hidden" type="hidden" value="checkin">
+        <div class="toolbar">
+            <div class="date-field">
+                <input id="correctionModalTime" class="input" type="time" value="">
+                <button class="date-button" data-picker-target="correctionModalTime" type="button">🕒</button>
+            </div>
+            <button id="confirmCorrectionCheckinBtn" class="button" type="button">确认</button>
+        </div>
+        <div id="correctionModalStatus" class="status-bar">补录时间会写入打卡记录，并影响同次数时的榜单排序。</div>
+    </div>
+</div>
+<script src="/admin/app.js"></script>
+</body>
+</html>
+
+
+
+

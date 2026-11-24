@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>点亮金牌后台登录</title>
+    <link rel="stylesheet" href="/admin/styles.css">
+</head>
+<body>
+<div class="auth-shell">
+    <div class="auth-card">
+        <h1 class="auth-title">后台登录</h1>
+        <p class="auth-desc">管理员可管理全校数据，班主任账号仅可查看和导出本班打卡数据。</p>
+        <form id="loginForm" class="form-grid">
+            <div class="field">
+                <label for="username">账号</label>
+                <input id="username" class="input" type="text" placeholder="请输入管理员或班主任账号" required>
+            </div>
+            <div class="field">
+                <label for="password">密码</label>
+                <input id="password" class="input" type="password" placeholder="请输入密码" required>
+            </div>
+            <button type="submit" class="button">登录系统</button>
+        </form>
+        <div class="tips">
+            默认管理员账号为 `admin / dlzx`。<br>
+            所有导入账号默认密码统一为 `dlzx`，且首次登录后必须先修改密码。
+        </div>
+        <div id="loginMessage" class="status-bar hidden"></div>
+    </div>
+</div>
+<script>
+    const storageKey = "checkin_admin_auth";
+    const form = document.getElementById("loginForm");
+    const message = document.getElementById("loginMessage");
+
+    if (localStorage.getItem(storageKey)) {
+        location.replace("/admin/index.html");
+    }
+
+    function setMessage(text, isError) {
+        message.textContent = text;
+        message.classList.remove("hidden");
+        message.style.color = isError ? "#ffb5b5" : "#9fe8ff";
+    }
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value;
+        try {
+            const response = await fetch("/api/admin/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            });
+            const json = await response.json();
+            if (!response.ok || json.code !== 200) {
+                throw new Error(json.message || "登录失败");
+            }
+            localStorage.setItem(storageKey, JSON.stringify(json.data));
+            setMessage("登录成功，正在进入后台...", false);
+            window.setTimeout(() => location.replace("/admin/index.html"), 300);
+        } catch (error) {
+            setMessage(error.message, true);
+        }
+    });
+</script>
+</body>
+</html>

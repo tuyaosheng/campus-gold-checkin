@@ -1,0 +1,29 @@
+# Maven
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
+*.log
+
+# 私有配置（数据库密码、JWT 密钥）
+src/main/resources/application-local.yml
+
+# 打包产物与历史交付包
+*.zip
+补丁/
+段位修复改动文件/
+
+# 含真实学生/内网信息的数据，不提交
+db.sql
+*.sql.bak
+班级免登录打卡链接快捷方式/
+
+# 根目录历史原型与杂项
+/checkin.html
+/*.txt

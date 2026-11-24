@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>入室即静，入座即学 - 点亮金牌</title>
+    <style>
+        /* ================= 滚动条全局美化 ================= */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        * { box-sizing: border-box; }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0d1b2a, #1e3b70);
+            font-family: "Microsoft YaHei", sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle infinite alternate;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0.2; }
+            100% { opacity: 1; box-shadow: 0 0 5px white; }
+        }
+        .page-shell {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* ================= 侧边栏样式 ================= */
+        .leaderboard-panel {
+            width: 300px;
+            padding: 24px 18px 20px;
+            background: rgba(5, 16, 32, 0.82);
+            border-right: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            color: #fff;
+            transition: margin-left .22s ease, opacity .22s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        .page-shell.board-hidden .leaderboard-panel {
+            margin-left: -300px;
+            opacity: 0;
+        }
+        .leaderboard-header {
+            margin-bottom: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .leaderboard-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffe27a;
+        }
+        .leaderboard-subtitle {
+            margin-top: 6px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.74);
+            line-height: 1.5;
+        }
+        .leaderboard-tabs {
+            margin-top: 12px;
+            display: flex;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 4px;
+        }
+        .leaderboard-tab {
+            flex: 1;
+            border: none;
+            border-radius: 9px;
+            padding: 7px 0;
+            font-size: 13px;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.72);
+            background: transparent;
+            cursor: pointer;
+            transition: background .18s ease, color .18s ease;
+        }
+        .leaderboard-tab.active {
+            background: linear-gradient(135deg, #ffe699, #f3b94a);
+            color: #513000;
+        }
+        .leaderboard-list {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 4px;
+            scroll-behavior: smooth;
+        }
+        .rank-item,
+        .rank-empty {
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            flex-shrink: 0;
+        }
+        .rank-item {
+            display: grid;
+            grid-template-columns: 42px 1fr auto;
+            gap: 12px;
+            align-items: center;
+            padding: 12px;
+            width: 100%;
+            text-align: center;
+        }
+        .rank-no {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #533500;
+            background: linear-gradient(135deg, #fff1a6, #f2be3f);
+        }
+        .rank-name {
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .rank-meta {
+            margin-top: 4px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.68);
+            text-align: center;
+        }
+        .rank-tier {
+            min-width: 78px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(135deg, #6b7280, #374151);
+        }
+        .rank-tier.bronze { background: linear-gradient(135deg, #9a6b46, #6a4228); }
+        .rank-tier.silver { background: linear-gradient(135deg, #bcc7d6, #7a8ca5); }
+        .rank-tier.gold { background: linear-gradient(135deg, #ffd666, #d68a00); }
+        .rank-tier.platinum { background: linear-gradient(135deg, #5fd2a4, #1d8b73); }
+        .rank-tier.diamond { background: linear-gradient(135deg, #79c6ff, #3f61ff); }
+        .rank-tier.starry { background: linear-gradient(135deg, #c084fc, #7c3aed); }
+        .rank-tier.king { background: linear-gradient(135deg, #f97316, #dc2626); }
+        .rank-tier.legend { background: linear-gradient(135deg, #fb7185, #be123c); }
+        .rank-tier.glory { background: linear-gradient(135deg, #facc15, #f97316); }
+        .rank-empty {
+            padding: 16px;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.82);
+            width: 100%;
+        }
+
+        .toggle-board {
+            position: absolute;
+            top: 18px;
+            left: 316px;
+            z-index: 3;
+            width: 42px;
+            height: 42px;
+            border: none;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #ffe699, #f3b94a);
+            color: #513000;
+            font-size: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+            transition: left .22s ease;
+        }
+        .page-shell.board-hidden .toggle-board {
+            left: 16px;
+        }
+
+        /* ================= 主体内容区样式 ================= */
+        .app-container {
+            position: relative;
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            width: 100%;
+            height: 100vh;
+            padding: 2vh 2vw; /* 缩小了原本过大的内边距 */
+            min-width: 0;
+        }
+
+        .header {
+            text-align: center;
+            flex-shrink: 0; /* 核心修复：防止头部在屏幕高度不足时被压缩 */
+            margin-bottom: 1.5vh;
+        }
+        .title-1 {
+            font-family: "华文新魏", "魏碑", "STXinwei", "Weibei SC", serif;
+            /* 核心修复：使用 clamp 限制最大最小字号，防止一体机显示过大或过小 */
+            font-size: clamp(36px, 6vh, 66px);
+            background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00bfff, #4b0082, #8b00ff);
+            -webkit-background-clip: text;
+            color: transparent;
+            margin: 0;
+            letter-spacing: 5px;
+            text-shadow: 0 0 2px rgba(255, 255, 255, 0.2);
+        }
+        .title-2 {
+            color: white;
+            font-size: clamp(24px, 4vh, 48px);
+            font-weight: bold;
+            margin: 1vh 0 0;
+            white-space: nowrap;
+        }
+        .title-3 {
+            color: #ffe27a;
+            font-size: clamp(16px, 2vh, 24px);
+            font-weight: bold;
+            margin: 8px 0 0;
+        }
+        .class-banner {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+            padding: 8px 18px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #fff;
+            font-size: clamp(16px, 2.5vh, 22px);
+            font-weight: bold;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* 改为靠上对齐，配合滚动条更自然 */
+            min-height: 0;
+            overflow-y: auto; /* 核心修复：中间区域高度不够时允许滚动，而不是溢出 */
+            padding: 10px 0;
+        }
+        .grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: flex-start;
+            width: 90vw;
+            gap: 16px; /* 核心修复：废弃 0.6cm，改用稳定的 px */
+        }
+
+        .circle {
+            width: 80px;  /* 核心修复：废弃 2cm，改用稳定的 80px */
+            height: 80px; /* 核心修复：废弃 2cm，改用稳定的 80px */
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #f4f4f4, #a0a0a0);
+            box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            touch-action: none;
+            transition: transform 0.1s ease, opacity .2s ease;
+            position: relative;
+            overflow: hidden;
+            border: none;
+        }
+        .circle.gold {
+            background: radial-gradient(circle at 35% 35%, #fff159, #e6b800);
+            box-shadow: 0 0 15px rgba(255, 247, 0, 0.9), inset -2px -2px 6px rgba(200, 150, 0, 0.5);
+        }
+        .circle.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .circle-num {
+            color: darkblue;
+            font-size: 22px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+        .circle-info {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+            width: 100%;
+            padding: 0 4px; /* 防止名字贴边 */
+        }
+        .circle.gold .circle-num { display: none; }
+        .circle.gold .circle-info { display: flex; }
+        .circle-name {
+            color: purple;
+            font-size: 16px; /* 稍微调小一点防止三个字以上的名字溢出 */
+            font-weight: bold;
+            line-height: 1.2;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .circle-time {
+            color: purple;
+            font-size: 13px;
+            font-weight: bold;
+            line-height: 1.1;
+            margin-top: 2px;
+        }
+
+        .footer {
+            text-align: center;
+            flex-shrink: 0; /* 核心修复：防止底部在屏幕高度不足时被压缩 */
+            margin-top: 1vh;
+            padding-bottom: 1vh;
+        }
+        .footer-top {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2vw;
+            margin-bottom: 0.5vh;
+        }
+        .footer-title {
+            font-family: "华文彩云", "STCaiyun", "Comic Sans MS", cursive;
+            font-size: clamp(36px, 6vh, 66px); /* 响应式字号 */
+            background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00bfff, #4b0082, #8b00ff);
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .footer-class {
+            color: white;
+            font-size: clamp(20px, 4vh, 38px); /* 响应式字号 */
+            font-weight: bold;
+        }
+        .footer-instruction {
+            color: #dddddd;
+            font-size: clamp(14px, 2vh, 20px);
+            margin-top: 0.5vh;
+            letter-spacing: 2px;
+        }
+        .footer-instruction.warning {
+            color: #ffe189;
+        }
+
+        .toast {
+            position: fixed;
+            right: 22px;
+            bottom: 22px;
+            z-index: 5;
+            min-width: 220px;
+            max-width: 320px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            background: rgba(12, 23, 42, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            opacity: 0;
+            transform: translateY(12px);
+            transition: opacity .2s ease, transform .2s ease;
+            pointer-events: none;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .toast.success { border-color: rgba(125, 227, 255, 0.45); }
+        .toast.error { border-color: rgba(255, 130, 130, 0.45); }
+
+        /* 移动端/小屏适配 */
+        @media (max-width: 900px) {
+            body, html {
+                overflow: auto;
+                height: auto;
+                min-height: 100vh;
+            }
+            .page-shell {
+                flex-direction: column;
+                min-height: 100vh;
+            }
+            .leaderboard-panel {
+                width: 100%;
+                max-height: 40vh;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            }
+            .page-shell.board-hidden .leaderboard-panel {
+                display: none;
+                margin-left: 0;
+            }
+            .toggle-board {
+                left: auto;
+                right: 16px;
+            }
+            .page-shell.board-hidden .toggle-board {
+                left: auto;
+                right: 16px;
+            }
+            .title-2 {
+                white-space: normal;
+            }
+            .footer-top {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .grid {
+                width: 96vw;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="stars"></div>
+<div class="page-shell" id="pageShell">
+    <aside class="leaderboard-panel">
+        <div class="leaderboard-header">
+            <div class="leaderboard-title">班内战力榜</div>
+            <div class="leaderboard-subtitle" id="leaderboardSubtitle">按本学期累计打卡次数排序，同次数按最早打卡时间排序</div>
+            <div class="leaderboard-tabs" id="leaderboardTabs">
+                <button type="button" class="leaderboard-tab active" data-scope="total">总榜</button>
+                <button type="button" class="leaderboard-tab" data-scope="week">周榜</button>
+                <button type="button" class="leaderboard-tab" data-scope="month">月榜</button>
+            </div>
+        </div>
+        <div class="leaderboard-list" id="leaderboardList">
+            <div class="rank-empty">正在加载班内战力榜...</div>
+        </div>
+    </aside>
+    <button class="toggle-board" id="toggleBoard" type="button">‹</button>
+    <div class="app-container">
+        <div class="header">
+            <h1 class="title-1">入室即静，入座即学</h1>
+            <div class="title-3" id="schoolTopLabel">本年级学期打卡王者：--</div>
+            <p class="title-2" id="dailyQuote">我相信——我的坚持，可以成就更好的自己！</p>
+            <div class="class-banner">
+                <span id="classLabel">正在加载班级...</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="grid" id="grid">
+                <div class="rank-empty">正在读取花名册...</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="footer-top">
+                <div class="footer-title">点亮金牌活动</div>
+            </div>
+            <div class="footer-instruction" id="pageTip">双击已点亮金牌可取消打卡</div>
+        </div>
+    </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const uniqueCode = params.get("code") || params.get("uniqueCode");
+    const starsContainer = document.getElementById("stars");
+    const pageShell = document.getElementById("pageShell");
+    const toggleBoardBtn = document.getElementById("toggleBoard");
+    const leaderboardList = document.getElementById("leaderboardList");
+    const leaderboardSubtitle = document.getElementById("leaderboardSubtitle");
+    const leaderboardTabs = document.getElementById("leaderboardTabs");
+    const grid = document.getElementById("grid");
+    const classLabel = document.getElementById("classLabel");
+    const pageTip = document.getElementById("pageTip");
+    const dailyQuoteEl = document.getElementById("dailyQuote");
+    const schoolTopLabel = document.getElementById("schoolTopLabel");
+    const toastEl = document.getElementById("toast");
+    let currentRoster = null;
+    let currentBoardScope = "total";
+    let pollingTimer = null;
+    let leaderboardScrollTimer = null;
+
+    for (let i = 0; i < 150; i++) {
+        const star = document.createElement("div");
+        star.className = "star";
+        const size = Math.random() * 3 + 1;
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.top = `${Math.random() * 100}%`;
+        star.style.animationDuration = `${Math.random() * 3 + 1.5}s`;
+        star.style.animationDelay = `${Math.random() * 3}s`;
+        starsContainer.appendChild(star);
+    }
+
+    window.addEventListener("contextmenu", (event) => event.preventDefault());
+
+    function showToast(message, type) {
+        toastEl.textContent = message;
+        toastEl.className = `toast show ${type || ""}`;
+        window.clearTimeout(showToast.timer);
+        showToast.timer = window.setTimeout(() => {
+            toastEl.className = "toast";
+        }, 2400);
+    }
+
+    async function request(url, options) {
+        const config = Object.assign({ cache: "no-store" }, options || {});
+        const response = await fetch(url, config);
+        const json = await response.json();
+        if (!response.ok || json.code !== 200) {
+            throw new Error(json.message || "请求失败");
+        }
+        return json.data;
+    }
+
+    function resolveRankTier(totalCount) {
+        const count = Number(totalCount || 0);
+        if (count >= 165) return { name: count === 165 ? "荣耀王者" : `荣耀王者${count - 165}星`, css: "glory" };
+        if (count >= 159) return { name: count === 159 ? "无双王者" : `无双王者${count - 159}星`, css: "legend" };
+        if (count >= 153) return { name: count === 153 ? "最强王者" : `最强王者${count - 153}星`, css: "king" };
+        if (count >= 152) return { name: "至尊星耀Ⅰ", css: "starry" };
+        if (count >= 150) return { name: "至尊星耀Ⅱ", css: "starry" };
+        if (count >= 146) return { name: "至尊星耀Ⅲ", css: "starry" };
+        if (count >= 141) return { name: "至尊星耀Ⅳ", css: "starry" };
+        if (count >= 136) return { name: "至尊星耀Ⅴ", css: "starry" };
+        if (count >= 130) return { name: "永恒钻石Ⅰ", css: "diamond" };
+        if (count >= 121) return { name: "永恒钻石Ⅱ", css: "diamond" };
+        if (count >= 112) return { name: "永恒钻石Ⅲ", css: "diamond" };
+        if (count >= 103) return { name: "永恒钻石Ⅳ", css: "diamond" };
+        if (count >= 94) return { name: "永恒钻石Ⅴ", css: "diamond" };
+        if (count >= 85) return { name: "尊贵铂金Ⅰ", css: "platinum" };
+        if (count >= 77) return { name: "尊贵铂金Ⅱ", css: "platinum" };
+        if (count >= 69) return { name: "尊贵铂金Ⅲ", css: "platinum" };
+        if (count >= 61) return { name: "尊贵铂金Ⅳ", css: "platinum" };
+        if (count >= 53) return { name: "荣耀黄金Ⅰ", css: "gold" };
+        if (count >= 46) return { name: "荣耀黄金Ⅱ", css: "gold" };
+        if (count >= 39) return { name: "荣耀黄金Ⅲ", css: "gold" };
+        if (count >= 32) return { name: "荣耀黄金Ⅳ", css: "gold" };
+        if (count >= 25) return { name: "秩序白银Ⅰ", css: "silver" };
+        if (count >= 20) return { name: "秩序白银Ⅱ", css: "silver" };
+        if (count >= 15) return { name: "秩序白银Ⅲ", css: "silver" };
+        if (count >= 10) return { name: "倔强青铜Ⅰ", css: "bronze" };
+        if (count >= 5) return { name: "倔强青铜Ⅱ", css: "bronze" };
+        return { name: "倔强青铜Ⅲ", css: "bronze" };
+    }
+
+    const BOARD_SCOPE_META = {
+        total: { field: "totalLeaderboard", periodLabel: "本学期", emptyText: "当前班级还没有可显示的学期累计榜数据。" },
+        week: { field: "weekLeaderboard", periodLabel: "本周", emptyText: "当前班级还没有可显示的本周榜数据。" },
+        month: { field: "monthLeaderboard", periodLabel: "本月", emptyText: "当前班级还没有可显示的本月榜数据。" }
+    };
+
+    function renderLeaderboard(scope) {
+        leaderboardSubtitle.textContent = "";
+        leaderboardSubtitle.style.display = "none";
+        const meta = BOARD_SCOPE_META[scope] || BOARD_SCOPE_META.total;
+        const rankedStudents = (currentRoster && currentRoster[meta.field]) || [];
+        if (!rankedStudents.length) {
+            leaderboardList.innerHTML = `<div class="rank-empty">${meta.emptyText}</div>`;
+            return;
+        }
+        leaderboardList.innerHTML = rankedStudents.map((student, index) => `
+            <div class="rank-item">
+                <div class="rank-no">${index + 1}</div>
+                <div>
+                    <div class="rank-name">${student.studentName}</div>
+                    <div class="rank-meta">${student.studentNo || "未填写学号"} · ${meta.periodLabel} ${student.totalCheckinCount || 0} 次</div>
+                </div>
+                <div class="rank-tier ${(student.rankCssCode || resolveRankTier(student.totalCheckinCount).css)}">${student.rankTitle || resolveRankTier(student.totalCheckinCount).name}</div>
+            </div>
+        `).join("");
+    }
+
+    function switchBoardScope(scope) {
+        if (!BOARD_SCOPE_META[scope]) {
+            return;
+        }
+        currentBoardScope = scope;
+        Array.from(leaderboardTabs.querySelectorAll(".leaderboard-tab")).forEach((tabBtn) => {
+            tabBtn.classList.toggle("active", tabBtn.dataset.scope === currentBoardScope);
+        });
+        renderLeaderboard(currentBoardScope);
+        startLeaderboardAutoScroll();
+    }
+
+    leaderboardTabs.addEventListener("click", (event) => {
+        const tabBtn = event.target.closest(".leaderboard-tab");
+        if (!tabBtn) {
+            return;
+        }
+        switchBoardScope(tabBtn.dataset.scope);
+    });
+
+    function buildCircle(student, index, interactionAllowed) {
+        const circle = document.createElement("button");
+        circle.type = "button";
+        circle.className = `circle${student.checkedIn ? " gold" : ""}${interactionAllowed ? "" : " disabled"}`;
+        circle.dataset.id = student.studentId;
+
+        const numEl = document.createElement("div");
+        numEl.className = "circle-num";
+        numEl.textContent = student.displayNo != null ? student.displayNo : (index + 1);
+
+        const infoEl = document.createElement("div");
+        infoEl.className = "circle-info";
+
+        const nameEl = document.createElement("div");
+        nameEl.className = "circle-name";
+        nameEl.textContent = student.studentName;
+
+        const timeEl = document.createElement("div");
+        timeEl.className = "circle-time";
+        timeEl.textContent = student.checkedIn ? (student.checkinTime || "") : "";
+
+        infoEl.appendChild(nameEl);
+        infoEl.appendChild(timeEl);
+        circle.appendChild(numEl);
+        circle.appendChild(infoEl);
+
+        circle.addEventListener("pointerup", async (event) => {
+            circle.style.transform = "scale(1)";
+            if (circle.classList.contains("gold")) {
+                return;
+            }
+            if (!interactionAllowed) {
+                showToast(currentRoster && currentRoster.interactionMessage ? currentRoster.interactionMessage : "当前不在打卡时间段，暂不可打卡", "error");
+                return;
+            }
+            circle.disabled = true;
+            try {
+                const result = await request("/api/public/check-in", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        uniqueCode,
+                        studentId: Number(circle.dataset.id)
+                    })
+                });
+                circle.classList.add("gold");
+                timeEl.textContent = result.checkinTime.slice(11, 16);
+                const target = (currentRoster.students || []).find((item) => Number(item.studentId) === Number(circle.dataset.id));
+                if (target) {
+                    target.checkedIn = true;
+                    target.checkinTime = result.checkinTime.slice(11, 16);
+                }
+                await loadRoster(true);
+            } catch (error) {
+                circle.disabled = false;
+                showToast(error.message, "error");
+            }
+        });
+
+        circle.addEventListener("pointercancel", () => {
+            circle.style.transform = "scale(1)";
+        });
+
+        circle.addEventListener("dblclick", async (event) => {
+            event.preventDefault();
+            if (!circle.classList.contains("gold")) {
+                return;
+            }
+            if (!interactionAllowed) {
+                showToast(currentRoster && currentRoster.interactionMessage ? currentRoster.interactionMessage : "当前不在打卡时间段，暂不可打卡", "error");
+                return;
+            }
+            await revokeCheckIn(student, circle, timeEl);
+        });
+
+        return circle;
+    }
+
+    async function revokeCheckIn(student, circle, timeEl) {
+        try {
+            await request("/api/public/check-in/revoke", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    uniqueCode,
+                    studentId: Number(student.studentId)
+                })
+            });
+            circle.classList.remove("gold");
+            circle.disabled = false;
+            timeEl.textContent = "";
+            const target = (currentRoster.students || []).find((item) => Number(item.studentId) === Number(student.studentId));
+            if (target) {
+                target.checkedIn = false;
+                target.checkinTime = "";
+            }
+            await loadRoster(true);
+        } catch (error) {
+            showToast(error.message, "error");
+        }
+    }
+
+    function renderRoster(roster) {
+        currentRoster = roster;
+        const classText = `${roster.gradeName || ""}${roster.className || ""}`;
+        const interactionAllowed = roster.interactionAllowed !== false;
+        classLabel.textContent = classText || "未识别班级";
+        dailyQuoteEl.textContent = roster.dailyQuote || "我相信——我的坚持，可以成就更好的自己！";
+        schoolTopLabel.textContent = `本年级榜首：${roster.schoolTopStudentName || "暂无"} | ${roster.schoolTopStudentClassName || "--"} | ${roster.schoolTopStudentCount || 0}次`;
+
+        const students = roster.students || [];
+        if (!students.length) {
+            grid.innerHTML = '<div class="rank-empty">当前班级没有可用学生数据，请先在后台导入花名册。</div>';
+            renderLeaderboard(currentBoardScope);
+            return;
+        }
+
+        grid.innerHTML = "";
+        students.forEach((student, index) => {
+            grid.appendChild(buildCircle(student, index, interactionAllowed));
+        });
+        renderLeaderboard(currentBoardScope);
+        startLeaderboardAutoScroll();
+    }
+
+    function startLeaderboardAutoScroll() {
+        window.clearInterval(leaderboardScrollTimer);
+        if (!leaderboardList || leaderboardList.scrollHeight <= leaderboardList.clientHeight + 8) {
+            return;
+        }
+        let direction = 1;
+        leaderboardScrollTimer = window.setInterval(() => {
+            const maxScroll = leaderboardList.scrollHeight - leaderboardList.clientHeight;
+            if (maxScroll <= 0) {
+                return;
+            }
+            if (leaderboardList.scrollTop >= maxScroll) {
+                direction = -1;
+            } else if (leaderboardList.scrollTop <= 0) {
+                direction = 1;
+            }
+            leaderboardList.scrollTop += direction;
+        }, 80);
+    }
+
+    async function loadRoster(silent) {
+        if (!uniqueCode) {
+            grid.innerHTML = '<div class="rank-empty">缺少班级特征码，请使用带有 ?code=xxxx 的链接访问。</div>';
+            leaderboardList.innerHTML = '<div class="rank-empty">未提供班级特征码，无法显示班内战力榜。</div>';
+            return;
+        }
+        try {
+            const roster = await request(`/api/public/roster?uniqueCode=${encodeURIComponent(uniqueCode)}&_t=${Date.now()}`);
+            renderRoster(roster);
+        } catch (error) {
+            if (!silent) {
+                grid.innerHTML = `<div class="rank-empty">${error.message}</div>`;
+                leaderboardList.innerHTML = `<div class="rank-empty">${error.message}</div>`;
+            }
+        }
+    }
+
+    toggleBoardBtn.addEventListener("click", () => {
+        pageShell.classList.toggle("board-hidden");
+        toggleBoardBtn.textContent = pageShell.classList.contains("board-hidden") ? "›" : "‹";
+    });
+
+    loadRoster();
+    pollingTimer = window.setInterval(() => {
+        loadRoster(true);
+    }, 5000);
+    // 核心修复：一体机/大屏系统缩放自动适配脚本
+    // ==========================================
+    function autoAdjustZoom() {
+        // 我们期望网页在垂直方向上至少拥有 950 像素的排版空间
+        const TARGET_MIN_HEIGHT = 950;
+        const currentLogicalHeight = window.innerHeight;
+
+        // 如果当前浏览器可视高度小于期望高度（说明系统开启了 150%、200% 或 300% 缩放）
+        if (currentLogicalHeight > 0 && currentLogicalHeight < TARGET_MIN_HEIGHT) {
+            // 动态计算出合适的缩放比例。
+            // 比如 1080p 屏幕在 150% 缩放时，高度是 720。 720 / 950 ≈ 0.757 (完美契合你发现的 75%)
+            const zoomLevel = currentLogicalHeight / TARGET_MIN_HEIGHT;
+            // 应用缩放
+            document.body.style.zoom = zoomLevel;
+
+            // 针对部分不支持 zoom 的火狐浏览器，做兼容处理
+            // document.body.style.transform = `scale(${zoomLevel})`;
+            // document.body.style.transformOrigin = 'top left';
+            // document.body.style.width = `${100 / zoomLevel}%`;
+            // document.body.style.height = `${100 / zoomLevel}%`;
+        } else {
+            // 如果屏幕逻辑分辨率足够大（比如正常 100% 缩放的电脑），就不缩放
+            document.body.style.zoom = 1;
+        }
+    }
+
+    // 页面加载完毕时执行一次
+    autoAdjustZoom();
+    // 当全屏状态改变、或者窗口拉伸时，重新计算
+    window.addEventListener('resize', autoAdjustZoom);
+</script>
+</body>
+</html>
